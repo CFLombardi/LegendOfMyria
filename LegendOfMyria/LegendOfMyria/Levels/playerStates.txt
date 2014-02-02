@@ -1,0 +1,12 @@
+﻿total player states: 7
+standing
+walking
+jumping
+falling
+hitWall
+climbing
+wallJump
+
+At current, the player reaches 216 pixels at the peak of his jump
+
+In level files, each block is 200x200
