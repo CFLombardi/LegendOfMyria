@@ -3,3 +3,5 @@ Tino's got a ragin clue about this "respawn" point.  Make a dead state to reset 
 level movement, look into moving the camera and not the world around the player - methinks that Tino isn't understand my description on how to make the window move.  I don't think there's another way to do this
 
 tracking metrics (player path, times died, health, etc.) - long term goal
+
+track the player's position, the state, and input from the user

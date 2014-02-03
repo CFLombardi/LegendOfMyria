@@ -17,6 +17,9 @@ namespace LegendOfMyria
     /// </summary>
     public class Myria : Microsoft.Xna.Framework.Game
     {
+        //the map of the level represented by a 2d grid of characters
+        char[,] levelMap;
+
         //gravity constant that affects all objects
         float gravity;
 
@@ -112,6 +115,8 @@ namespace LegendOfMyria
             //creating environment
             thePlatforms = new List<Platform>();
 
+            levelMap = new char[20, 4];
+
             //creating the variables to record data 
             playerInput = new List<string>();
 
@@ -163,6 +168,7 @@ namespace LegendOfMyria
                         //for each column or letter per row
                         for (int j = 0; j < levelData.Length; j++)
                         {
+                            levelMap[j, i] = levelData[j];
                             if (levelData[j] == 'G')
                             {
                                 Platform temp = new Platform();
@@ -227,7 +233,7 @@ namespace LegendOfMyria
                 }
             }
 
-            maxLevelDistance.X = 4000;
+            maxLevelDistance.X = (levelData.Length * 200)- graphics.PreferredBackBufferWidth;
 
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -285,7 +291,7 @@ namespace LegendOfMyria
                 //we must add all the values for the position, state, and input from the player
                 foreach (Vector2 position in playerPath)
                 {
-                    header[0, count] = position.X + ", " + position.Y;
+                    header[0, count] = ""+position;
                     count++;
                 }
 
@@ -306,10 +312,10 @@ namespace LegendOfMyria
                 }
 
                 //now that we have all the info in the proper order, we shall write to a text file that will be saved on the desktop
-                System.IO.StreamWriter file = new System.IO.StreamWriter("C:\\Users\\Tony\\Desktop\\debug.txt");
+                System.IO.StreamWriter file = new System.IO.StreamWriter("C:\\Users\\Anthony\\Desktop\\debug.txt");
                 for (int i = 0; i < header.GetLength(0); i++)
                 {
-                    file.WriteLine(header[0, i] + "\t\t" + header[1, i] + "\t\t"+ header[2, i]);
+                    file.WriteLine(header[0, i] + "\t" + header[1, i] + "\t"+ header[2, i]);
                 }
                 file.Close();
                 //closing out the game
@@ -409,7 +415,7 @@ namespace LegendOfMyria
 
             //display for testing variables
             spriteBatch.DrawString(font, player.getState(), new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y), Color.White);
-            //spriteBatch.DrawString(font, "x: " + player.Position.X, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y + 30), Color.White);
+            //spriteBatch.DrawString(font, "v: " + player.velocity.X, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y + 30), Color.White);
 
 
             //Stop drawing
@@ -458,30 +464,30 @@ namespace LegendOfMyria
             }
 
             //moving the player
-            if (player.Position.X >= windowHalf && player.velocity.X > 0)
+            if (player.Position.X >= windowHalf && player.velocity.X > 0 && windowMovement.X < maxLevelDistance.X)
             {
-                if (windowMovement.X < maxLevelDistance.X - graphics.PreferredBackBufferWidth)
+
+                if (maxLevelDistance.X - windowMovement.X < player.velocity.X)
                 {
-                    MoveScreen(player.velocity.X);
+                    MoveScreen(maxLevelDistance.X - windowMovement.X);
                     player.Position.Y += player.velocity.Y;
                 }
                 else
                 {
-                    float move = windowMovement.X - (maxLevelDistance.X - graphics.PreferredBackBufferWidth;
-                    MoveScreen(move);
+                    MoveScreen(player.velocity.X);
                     player.Position.Y += player.velocity.Y;
                 }
             }
-            else if (player.Position.X <= windowHalf && player.velocity.X < 0)
+            else if (player.Position.X <= windowHalf && player.velocity.X < 0 && windowMovement.X > 0)
             {
-                if (windowMovement.X > 0)
+                if (windowMovement.X < Math.Abs(player.velocity.X))
                 {
-                    MoveScreen(player.velocity.X);
-                    player.Position += player.velocity;
+                    MoveScreen(-windowMovement.X);
+                    player.Position.Y += player.velocity.Y;
                 }
                 else
                 {
-                    MoveScreen(windowMovement.X);
+                    MoveScreen(player.velocity.X);
                     player.Position.Y += player.velocity.Y;
                 }
             }
@@ -498,7 +504,7 @@ namespace LegendOfMyria
              * past the middle of the screen we shall move the environment instead.  If we reach the end of the 
              * map the player needs to move around without moving the window.
              **/
-             //moving the environment instead of the player
+            //moving the environment instead of the player
             foreach (Platform element in thePlatforms)
             {
                 //it must move at the speed of the player
@@ -546,74 +552,52 @@ namespace LegendOfMyria
                     Rectangle intersectRect = Rectangle.Intersect(playerRect, platformRect);                    
                     int platformBottom = platformRect.Y + platformRect.Height;
 
-                    if (player.getState() == "walking")
+                    //check if the player is below the platform
+                    if (player.Position.Y >= platformBottom)
                     {
-                        //if the player walks into a wall, the player will stop moving and stand
-                        player.setState("standing");
+                        //the player's head hit the bottom of the platform so we stop upward movement and set them to falling
+                        player.setState("falling");
+                        player.Position = new Vector2(player.Position.X + player.velocity.X, platformBottom);
+                        player.velocity = new Vector2(0, 0);
+                    }
+                    //check if the player is on the side of the platform
+                    else if (player.Position.Y < platformBottom && player.getFeet() > platformRect.Y)
+                    {
 
-                        //if the player is moving to the right, the wall must push the player back
-                        if(player.velocity.X > 0)
+                        //we need to determine the current state of the player
+                        if (player.getState() == "walking")
+                        {
+                            //We do not want to switch what platform the player is touching but update the state
+                            player.setState("standing");
+                        }
+                        else if (player.getState() == "jumping")
+                        {
+                            //We do not want to affect the player's upward movement but which platform he's touching
+                            player.setTouching(element);
+                        }
+                        else if (player.getState() == "falling")
+                        {
+                            //once the player begins to fall is when he'll be able to climb on the wall
+                            player.setState("hitWall");
+                            player.setTouching(element);
+                        }
+
+                        //the player must not pass through the platform
+                        if (player.velocity.X > 0)
                         {
                             player.velocity.X -= intersectRect.Width;
                         }
                         else if (player.velocity.X < 0)
                         {
                             player.velocity.X += intersectRect.Width;
-                        }
+                        }                        
                     }
-                    else if (player.getState() == "jumping")
+                    //check to see if the player is above the platform
+                    else if (player.getFeet() <= platformRect.Y)
                     {
-                        //if the player is under the platform we must stop their upward movement
-                        if ((int)player.Position.Y >= platformBottom)
-                        {
-                            player.setState("falling");
-                            player.Position = new Vector2(player.Position.X + player.velocity.X, platformBottom);
-                            player.velocity.Y = 0;
-                        }
-                        else
-                        {
-                            //the player is touching the side of the platform and must push the player back
-                            player.setTouching(element);
-                            if (player.velocity.X > 0)
-                            {
-                                player.velocity.X -= intersectRect.Width;
-                            }
-                            else if(player.velocity.X < 0)
-                            {
-                                player.velocity.X += intersectRect.Width;
-                            }
-                        }
-                    }
-                    else if (player.getState() == "falling")
-                    {
-                        player.setTouching(element);
-
-                        //if the player is above the platform then they have landed and will be standing
-                        if ((int)player.getFeet() <= platformRect.Y)
-                        {
-                            player.setState("standing");
-                            player.Position = new Vector2(player.Position.X + player.velocity.X, platformRect.Y - playerRect.Height);
-                            player.velocity = new Vector2(0, 0);
-                        }
-                        else
-                        {
-                            //the player is on the side of the platform and is considered climbing
-                            player.setState("climbing");
-                            if (player.velocity.X > 0)
-                            {
-                                player.velocity.X -= intersectRect.Width;
-                            }
-                            else if (player.velocity.X < 0)
-                            {
-                                player.velocity.X += intersectRect.Width;
-                            }
-                        }
-                    }
-                    else if (player.getState() == "climbing")
-                    {
-                        player.setTouching(element);
                         player.setState("standing");
-                        player.Position.Y = platformRect.Y - player.Height;
+                        player.setTouching(element);
+                        player.Position = new Vector2(player.Position.X + player.velocity.X, platformRect.Y - playerRect.Height);
                         player.velocity = new Vector2(0, 0);
                     }
                 }
@@ -622,6 +606,7 @@ namespace LegendOfMyria
             //checks to see if the player walks off any of the platforms
             if (player.currentlyTouching != dummy)
             {
+                bool found = false;
                 //if the platform has a cliff on the left side
                 if (player.currentlyTouching.getCliffSide() == "left")
                 {
@@ -637,10 +622,11 @@ namespace LegendOfMyria
                     {
                         foreach (Platform element in thePlatforms)
                         {
-                            //if the currently platform is the platform next to the one the player is currently touching
-                            if (element.Position.X == player.currentlyTouching.getRightSide() && element.Position.Y == player.currentlyTouching.Position.Y)
+                            //if the current platform is the platform next to the one the player is currently touching
+                            if (element.Position.X == player.currentlyTouching.getRightSide() && element.Position.Y == player.currentlyTouching.Position.Y && found == false)
                             {
                                 player.setTouching(element);
+                                found = true;
                             }
                         }
                     }
@@ -658,9 +644,10 @@ namespace LegendOfMyria
                     {
                         foreach (Platform element in thePlatforms)
                         {
-                            if (element.getRightSide() == player.currentlyTouching.Position.X && element.Position.Y == player.currentlyTouching.Position.Y)
+                            if (element.getRightSide() == player.currentlyTouching.Position.X && element.Position.Y == player.currentlyTouching.Position.Y && found == false)
                             {
                                 player.setTouching(element);
+                                found = true;
                             }
                         }
                     }
@@ -683,9 +670,10 @@ namespace LegendOfMyria
                     {
                         foreach(Platform element in thePlatforms)
                         {
-                            if (element.getRightSide() == player.currentlyTouching.Position.X)
+                            if (element.getRightSide() == player.currentlyTouching.Position.X && found == false)
                             {
                                 player.setTouching(element);
+                                found = true;
                             }
                         }
                     }
@@ -694,9 +682,10 @@ namespace LegendOfMyria
                     {
                         foreach (Platform element in thePlatforms)
                         {
-                            if (element.Position.X == player.currentlyTouching.getRightSide() && element.Position.Y == player.currentlyTouching.Position.Y)
+                            if (element.Position.X == player.currentlyTouching.getRightSide() && element.Position.Y == player.currentlyTouching.Position.Y && found == false)
                             {
                                 player.setTouching(element);
+                                found = true;
                             }
                         }
                     }
