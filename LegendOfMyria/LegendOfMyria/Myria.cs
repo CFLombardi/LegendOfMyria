@@ -376,13 +376,13 @@ namespace LegendOfMyria
             //Update the player
             UpdatePlayer(gameTime);
 
+            ApplyGravity();
+
             //detect collisions
             CollisionDetection();
             
             //Apply gravity to objects
             ApplyMovement();
-
-            
 
             base.Update(gameTime);
         }
@@ -424,12 +424,8 @@ namespace LegendOfMyria
             base.Draw(gameTime);
         }
 
-        private void ApplyMovement()
+        private void ApplyGravity()
         {
-            /**
-             * This function will move all the objects in the game.  It will factor in gravity as well.
-             **/
-
             //applying gravity to the player
             if (player.getState() == "falling" || player.getState() == "jumping")
             {
@@ -462,6 +458,13 @@ namespace LegendOfMyria
                     player.setState("falling");
                 }
             }
+        }
+
+        private void ApplyMovement()
+        {
+            /**
+             * This function will move all the objects in the game.
+             **/
 
             //moving the player
             if (player.Position.X >= windowHalf && player.velocity.X > 0 && windowMovement.X < maxLevelDistance.X)
@@ -553,7 +556,7 @@ namespace LegendOfMyria
                     int platformBottom = platformRect.Y + platformRect.Height;
 
                     //check if the player is below the platform
-                    if (player.Position.Y >= platformBottom)
+                    if ((int)player.Position.Y >= platformBottom)
                     {
                         //the player's head hit the bottom of the platform so we stop upward movement and set them to falling
                         player.setState("falling");
@@ -561,9 +564,8 @@ namespace LegendOfMyria
                         player.velocity = new Vector2(0, 0);
                     }
                     //check if the player is on the side of the platform
-                    else if (player.Position.Y < platformBottom && player.getFeet() > platformRect.Y)
+                    else if ((int)player.Position.Y < platformBottom && (int)player.getFeet() > platformRect.Y)
                     {
-
                         //we need to determine the current state of the player
                         if (player.getState() == "walking")
                         {
@@ -593,7 +595,7 @@ namespace LegendOfMyria
                         }                        
                     }
                     //check to see if the player is above the platform
-                    else if (player.getFeet() <= platformRect.Y)
+                    else if ((int)player.getFeet() <= platformRect.Y)
                     {
                         player.setState("standing");
                         player.setTouching(element);
@@ -826,6 +828,7 @@ namespace LegendOfMyria
                     else if (player.Position.Y > player.currentlyTouching.getBottom())
                     {
                         player.setState("falling");
+                        player.facingRight = true;
                         player.setTouching(dummy);
                     }
                     //otherwise they should be climbing on the side of the wall

@@ -61,7 +61,7 @@ namespace LegendOfMyria
         public Vector2 velocity;
 
         //starting position of Lars on the map
-        Vector2 startPos = new Vector2(100, 200);
+        public Vector2 startPos = new Vector2(100, 200);
 
         public int jumpedFrames;
 

@@ -1,7 +1,9 @@
 Tino's got a ragin clue about this "respawn" point.  Make a dead state to reset the player
 
-level movement, look into moving the camera and not the world around the player - methinks that Tino isn't understand my description on how to make the window move.  I don't think there's another way to do this
+Polish wall mechanics.  Make wall jump better and player should stop climbing the wall from their waist up.
+
+Add crouching.
+
+Move the camera up and down, when the level is higher than the screen.
 
 tracking metrics (player path, times died, health, etc.) - long term goal
-
-track the player's position, the state, and input from the user
