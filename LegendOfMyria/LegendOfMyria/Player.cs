@@ -205,9 +205,14 @@ namespace LegendOfMyria
             return this.Position.Y + this.Height;
         }
 
-        public float getWaist()
+        public float getRightSide()
         {
-            return this.Position.Y + (this.Height / 2);
+            return this.Position.X + this.Width;
+        }
+
+        public Vector2 getStartingPos()
+        {
+            return startPos;
         }
 
         public string getState()
@@ -220,19 +225,19 @@ namespace LegendOfMyria
             return currentlyTouching;
         }
 
-        public float getRightSide()
+        public float getWaist()
         {
-            return this.Position.X + this.Width;
-        }
+            return this.Position.Y + (this.Height / 2);
+        }        
 
         public void respawn()
         {
             Position = startPos;
         }
 
-        public void setTouching(Platform platform)
+        public void setStartingPos(Vector2 position)
         {
-            currentlyTouching = platform;
+            startPos = position;
         }
 
         public void setState(string state)
@@ -268,6 +273,11 @@ namespace LegendOfMyria
                     jumpingRight = texture;
                     break;
             }
+        }
+
+        public void setTouching(Platform platform)
+        {
+            currentlyTouching = platform;
         }
     }
 }
