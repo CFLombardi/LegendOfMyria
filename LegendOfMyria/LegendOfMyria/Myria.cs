@@ -280,8 +280,8 @@ namespace LegendOfMyria
             if(currentKeyboardState.IsKeyDown(Keys.Escape))
             {
                 //creating an array of strings to store all the information that we collected during the game
-                string[,] header = new string[playerPath.Count + 1, playerState.Count + 1];
-                int count = 1;
+                string[,] header = new string[3, playerPath.Count];
+                int count = 0;
 
                 //these are the headers for each column which will tell us what info we are looking at
                 header[0, 0] = "Position";
@@ -295,7 +295,7 @@ namespace LegendOfMyria
                     count++;
                 }
 
-                count = 1;
+                count = 0;
 
                 foreach (string state in playerState)
                 {
@@ -303,7 +303,7 @@ namespace LegendOfMyria
                     count++;
                 }
 
-                count = 1;
+                count = 0;
 
                 foreach (string input in playerInput)
                 {
@@ -312,8 +312,8 @@ namespace LegendOfMyria
                 }
 
                 //now that we have all the info in the proper order, we shall write to a text file that will be saved on the desktop
-                System.IO.StreamWriter file = new System.IO.StreamWriter("C:\\Users\\Anthony\\Desktop\\debug.txt");
-                for (int i = 0; i < header.GetLength(0); i++)
+                System.IO.StreamWriter file = new System.IO.StreamWriter("C:\\Users\\Tony\\Desktop\\debug.txt");
+                for (int i = 0; i < header.GetLength(1); i++)
                 {
                     file.WriteLine(header[0, i] + "\t" + header[1, i] + "\t"+ header[2, i]);
                 }
@@ -332,34 +332,34 @@ namespace LegendOfMyria
                 currentKeyboardState.IsKeyDown(Keys.D) &&
                 currentKeyboardState.IsKeyDown(Keys.Space))
             {
-                playerInput.Add("left, right, and jump");
+                playerInput.Add("L, R, & J");
             }
             else if (currentKeyboardState.IsKeyDown(Keys.A) &&
                 currentKeyboardState.IsKeyDown(Keys.D))
             {
-                playerInput.Add("left and right");
+                playerInput.Add("L & R");
             }
             else if (currentKeyboardState.IsKeyDown(Keys.A) &&
                 currentKeyboardState.IsKeyDown(Keys.Space))
             {
-                playerInput.Add("left and jump");
+                playerInput.Add("L & J");
             }
             else if (currentKeyboardState.IsKeyDown(Keys.D) &&
                 currentKeyboardState.IsKeyDown(Keys.Space))
             {
-                playerInput.Add("right and jump");
+                playerInput.Add("R & J");
             }
             else if (currentKeyboardState.IsKeyDown(Keys.A))
             {
-                playerInput.Add("left");
+                playerInput.Add("L");
             }
             else if (currentKeyboardState.IsKeyDown(Keys.D))
             {
-                playerInput.Add("right");
+                playerInput.Add("R");
             }
             else if (currentKeyboardState.IsKeyDown(Keys.Space))
             {
-                playerInput.Add("space");
+                playerInput.Add("J");
             }
             else
             {
@@ -428,7 +428,7 @@ namespace LegendOfMyria
         private void ApplyGravity()
         {
             //applying gravity to the player
-            if (player.getState() == "falling" || player.getState() == "jumping")
+            if (player.getState() == "falling" || player.getState() == "jumping" || player.getState() == "slipping")
             {
                 if (player.velocity.Y < player.terminalVelocity)
                 {
@@ -438,25 +438,44 @@ namespace LegendOfMyria
                 {
                     player.velocity.Y = player.terminalVelocity;
                 }
+
+                if (player.Position.Y >= player.currentlyTouching.getBottom())
+                {
+                    if (player.currentlyTouching != dummy)
+                    {
+                        player.setState("falling");
+                    }
+                }
             }
             else if (player.getState() == "climbing")
             {
-                player.velocity.Y = player.jumpSpeed * 0.1f;
-            }
-            else if (player.getState() == "wallJump")
-            {
-                if (player.facingRight)
+                if (player.getWaist() >= player.currentlyTouching.getBottom())
                 {
-                    player.velocity = new Vector2(player.velocity.X - 1, player.velocity.Y + gravity);
+                    player.setState("slipping");
+                    player.velocity.Y += gravity;
                 }
                 else
                 {
-                    player.velocity = new Vector2(player.velocity.X + 1, player.velocity.Y + gravity);
+                    player.velocity.Y = player.jumpSpeed * 0.1f;
                 }
-
-                if (player.velocity.X == 0)
+            }
+            else if (player.getState() == "wallJump")
+            {
+                if (player.jumpedFrames < 6)
                 {
                     player.setState("falling");
+                }
+                else
+                {
+                    if (player.facingRight)
+                    {
+                        player.velocity = new Vector2(player.velocity.X - 1, player.velocity.Y + gravity);
+                    }
+                    else
+                    {
+                        player.velocity = new Vector2(player.velocity.X + 1, player.velocity.Y + gravity);
+                    }
+                    player.jumpedFrames--;
                 }
             }
         }
@@ -499,24 +518,6 @@ namespace LegendOfMyria
             {
                 player.Position += player.velocity;
             }
-        }
-
-        private void MoveScreen(float movement)
-        {
-            /**
-             * This is going to move the screen to keep the player in the middle.  If the player is going to move
-             * past the middle of the screen we shall move the environment instead.  If we reach the end of the 
-             * map the player needs to move around without moving the window.
-             **/
-            //moving the environment instead of the player
-            foreach (Platform element in thePlatforms)
-            {
-                //it must move at the speed of the player
-                element.Position.X -= movement;
-            }
-
-            //this stores how far we have moved the camera from the starting point
-            windowMovement.X += movement;
         }
 
         private void CollisionDetection()
@@ -575,7 +576,7 @@ namespace LegendOfMyria
                         }
                         else if (player.getState() == "jumping")
                         {
-                            //We do not want to affect the player's upward movement but which platform he's touching
+                            //We do not want to affect the player's upward movement but, which platform he's touching
                             player.setTouching(element);
                         }
                         else if (player.getState() == "falling")
@@ -696,6 +697,38 @@ namespace LegendOfMyria
             }
         }
 
+        private void MoveScreen(float movement)
+        {
+            /**
+             * This is going to move the screen to keep the player in the middle.  If the player is going to move
+             * past the middle of the screen we shall move the environment instead.  If we reach the end of the 
+             * map the player needs to move around without moving the window.
+             **/
+            //moving the environment instead of the player
+            foreach (Platform element in thePlatforms)
+            {
+                //it must move at the speed of the player
+                element.Position.X -= movement;
+            }
+
+            player.startPos.X -= movement;
+
+            //this stores how far we have moved the camera from the starting point
+            windowMovement.X += movement;
+        }
+
+        private void playerRespawn()
+        {
+            foreach (Platform element in thePlatforms)
+            {
+                element.Position.X += windowMovement.X;
+            }
+            player.startPos = new Vector2(player.startPos.X + windowMovement.X, player.startPos.Y);
+            player.Position = player.startPos;
+            player.velocity = new Vector2(0, 0);
+            windowMovement.X = 0;
+        }
+
         private void UpdatePlayer(GameTime gameTime)
         {
             /**
@@ -716,67 +749,56 @@ namespace LegendOfMyria
             currentGamePadState.DPad.Left == ButtonState.Pressed)
             {
                 //this will determine if the player is in the hitWall or climbing state
-                if (player.getState() == "hitWall" || player.getState() == "climbing")
+                if (player.getState() == "hitWall")
                 {
-                    //the player's position next frame
-                    float playerFutureX = player.Position.X - player.moveSpeed;
-                    float playerFutureRight = player.getRightSide() - player.moveSpeed;
-
-                    //if the player is going to move into empty space they are considered falling again
-                    if (playerFutureRight < player.currentlyTouching.Position.X || playerFutureX > player.currentlyTouching.getRightSide())
-                    {
-                        player.setState("falling");                        
-                        player.facingRight = false;
-                        player.velocity.X = -player.moveSpeed;
-                        player.setTouching(dummy);
-                    }
-                    else if (player.getWaist() >= player.currentlyTouching.getBottom())
-                    {
-                        player.setState("falling");
-                        //player.facingRight = false;
-                        player.setTouching(dummy);
-                    }
-                    //otherwise they should be climbing on the side of the wall
-                    else
-                    {
-                        player.setState("climbing");
-                        player.facingRight = true;
-                    }
+                    player.setState("climbing");
+                    player.facingRight = true;
                 }
-                //otherwise the player is either standing, walking, jumping, or falling
-                else if(player.getState() != "wallJump") 
+                else if (player.getState() == "climbing")
                 {
+                    player.setState("climbing");
+                }
+                //otherwise the player is either standing, walking, jumping, falling, or slipping
+                else if (player.getState() != "wallJump")
+                {
+                    //if the player is only holding down left
                     if (currentKeyboardState.IsKeyUp(Keys.D) && currentKeyboardState.IsKeyUp(Keys.Right))
                     {
-                        player.facingRight = false;
                         player.velocity.X = -player.moveSpeed;
+                        if (player.getState() != "slipping")
+                        {
+                            player.facingRight = false;
+                        }
 
-                        if(player.getState() == "standing" || player.getState() == "walking")
+                        if (player.getState() == "standing" || player.getState() == "walking")
                         {
                             player.setState("walking");
                         }
                     }
+                    //then he is currently holding down right
                     else
                     {
+                        //if he was only holding down left last frame
                         if (previousKeyboardState.IsKeyUp(Keys.D) && previousKeyboardState.IsKeyUp(Keys.Right))
                         {
                             player.facingRight = false;
                             player.velocity.X = 0;
-                            if(player.getState() == "standing" || player.getState() == "walking")
+                            if (player.getState() == "standing" || player.getState() == "walking")
                             {
                                 player.setState("standing");
                             }
                         }
+                        //if he wasn't holding left last frame
                         else if (previousKeyboardState.IsKeyUp(Keys.A) && previousKeyboardState.IsKeyUp(Keys.Left))
                         {
                             player.facingRight = true;
                             player.velocity.X = 0;
-                            if(player.getState() == "standing" || player.getState() == "walking")
+                            if (player.getState() == "standing" || player.getState() == "walking")
                             {
                                 player.setState("standing");
                             }
                         }
-                        
+
                     }
                 }
             }
@@ -786,39 +808,24 @@ namespace LegendOfMyria
                 currentKeyboardState.IsKeyDown(Keys.Right) ||
             currentGamePadState.DPad.Right == ButtonState.Pressed)
             {
-                if (player.getState() == "hitWall" || player.getState() == "climbing")
+                if (player.getState() == "hitWall")
                 {
-                    //the player's position next frame
-                    float playerFutureX = player.Position.X + player.moveSpeed;
-                    float playerFutureRight = player.getRightSide() + player.moveSpeed;
-
-                    //if the player is going to move into empty space they are considered falling again
-                    if (playerFutureRight < player.currentlyTouching.Position.X || playerFutureX > player.currentlyTouching.getRightSide())
-                    {
-                        player.setState("falling");
-                        player.facingRight = true;
-                        player.velocity.X = player.moveSpeed;
-                        player.setTouching(dummy);
-                    }
-                    else if (player.getWaist() > player.currentlyTouching.getBottom())
-                    {
-                        player.setState("falling");
-                        //player.facingRight = true;
-                        player.setTouching(dummy);
-                    }
-                    //otherwise they should be climbing on the side of the wall
-                    else
-                    {
-                        player.setState("climbing");
-                        player.facingRight = false;
-                    }
+                    player.setState("climbing");
+                    player.facingRight = false;
+                }
+                else if(player.getState() == "climbing")
+                {
+                    player.setState("climbing");
                 }
                 else if(player.getState() != "wallJump")
                 {
                     if (currentKeyboardState.IsKeyUp(Keys.A) && currentKeyboardState.IsKeyUp(Keys.Left))
                     {
-                        player.facingRight = true;
                         player.velocity.X = player.moveSpeed;
+                        if (player.getState() != "slipping")
+                        {
+                            player.facingRight = true;
+                        }
 
                         if(player.getState() == "standing" || player.getState() == "walking")
                         {
@@ -865,14 +872,14 @@ namespace LegendOfMyria
                     else if (player.getState() == "climbing")
                     {
                         player.setState("wallJump");
-                        float tempXSpeed = 17;
+                        player.jumpedFrames = 17;
                         if (player.facingRight)
                         {
-                            player.velocity = new Vector2(tempXSpeed, -player.jumpSpeed);
+                            player.velocity = new Vector2(player.jumpedFrames, -player.jumpSpeed);
                         }
                         else
                         {
-                            player.velocity = new Vector2(-tempXSpeed, -player.jumpSpeed);
+                            player.velocity = new Vector2(-player.jumpedFrames, -player.jumpSpeed);
                         }
                         player.setTouching(dummy);
                     }
@@ -896,8 +903,16 @@ namespace LegendOfMyria
                 }
                 else if (player.getState() == "climbing")
                 {
-                    player.setState("falling");
-                    player.setTouching(dummy);
+                    if (player.released > 12)
+                    {
+                        player.setState("falling");
+                        player.setTouching(dummy);
+                        player.released = 0;
+                    }
+                    else
+                    {
+                        player.released++;
+                    }
                 }
             }
 
@@ -906,16 +921,11 @@ namespace LegendOfMyria
             
             if (player.Position.Y > GraphicsDevice.Viewport.Height)
             {
-                player.respawn();
+                playerRespawn();
             }
             //player.Position.Y = MathHelper.Clamp(player.Position.Y, 0, GraphicsDevice.Viewport.Height - player.Height);
 
             player.Update(gameTime);
         }
-
-        /// <summary>
-        /// This is called when the game should draw itself.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
     }
 }

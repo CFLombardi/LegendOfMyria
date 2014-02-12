@@ -65,6 +65,8 @@ namespace LegendOfMyria
 
         public int jumpedFrames;
 
+        public int released;
+
         //initializing Lars' variables that make him tick
         public void Initialize(int fps)
         {
@@ -90,6 +92,8 @@ namespace LegendOfMyria
             velocity = new Vector2(0, 0);
 
             jumpedFrames = 0;
+
+            released = 0;
         }
 
         //this is called to update the player information every frame
