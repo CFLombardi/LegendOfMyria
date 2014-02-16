@@ -1,9 +1,5 @@
-Tino's got a ragin clue about this "respawn" point.  Make a dead state to reset the player
-
-Polish wall mechanics.  Make wall jump better and player should stop climbing the wall from their waist up.
-
 Add crouching.
 
-Move the camera up and down, when the level is higher than the screen.
+Add a goal to finish the map.
 
 tracking metrics (player path, times died, health, etc.) - long term goal

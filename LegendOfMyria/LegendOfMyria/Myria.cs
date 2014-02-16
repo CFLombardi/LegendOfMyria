@@ -33,8 +33,9 @@ namespace LegendOfMyria
         //game's frames per seconds
         int framesPerSecond;
 
-        //the Height and Width of the window screen
-        int windowHalf;
+        //determines how many rows and columns the level map is from the text file
+        int levelColumn;
+        int levelRow;
 
         //Number that holds the player score
         //int score;
@@ -77,6 +78,9 @@ namespace LegendOfMyria
         //this lets us know where the end point of the level is, used for window movement
         Vector2 maxLevelDistance;
 
+        //this contains the halfway point for both x and y on the screen
+        Vector2 windowHalf;
+
         //This tracks the distance the player has moved from the starting point of the level
         Vector2 windowMovement;
 
@@ -89,7 +93,7 @@ namespace LegendOfMyria
             graphics.IsFullScreen = false;
             graphics.PreferredBackBufferWidth = 1280;
             graphics.PreferredBackBufferHeight = 720;
-            windowHalf = graphics.PreferredBackBufferWidth / 2;
+            windowHalf = new Vector2(graphics.PreferredBackBufferWidth / 2, graphics.PreferredBackBufferHeight / 2);
             Content.RootDirectory = "Content";
 
             //setting the fps to 64
@@ -114,8 +118,6 @@ namespace LegendOfMyria
 
             //creating environment
             thePlatforms = new List<Platform>();
-
-            levelMap = new char[20, 4];
 
             //creating the variables to record data 
             playerInput = new List<string>();
@@ -150,90 +152,110 @@ namespace LegendOfMyria
              * We determine how the level will be constructed based on a text file
              **/
 
-            //this is the variable that will hold the text buffer information
-            //the buffer only reads one line at a time
-            levelData = null;
-
-            //this is reading the text file to the text buffer
+            //this is reading the text file to a text buffer
             using (var stream = TitleContainer.OpenStream("Levels/tutorial.txt"))
             {
+                //this allows us to reader from the text buffer
                 using (var reader = new StreamReader(stream))
                 {
+                    //the first line from the text file will have the row length.  We'll convert it to an int and assign it to a variable
+                    levelData = reader.ReadLine();
+                    levelRow = Convert.ToInt32(levelData);
+
+                    //the second line from the text file will have the column length.  We'll conver it to an int and assign it to a variable
+                    levelData = reader.ReadLine();
+                    levelColumn = Convert.ToInt32(levelData);
+
+                    levelMap = new char[levelRow, levelColumn];
+
                     //for each row in the level map
-                    for (int i = 0; i < 4; i++)
+                    for (int i = 0; i < levelColumn; i++)
                     {
                         //retrieve the row from the file
                         levelData = reader.ReadLine();
                         
-                        //for each column or letter per row
-                        for (int j = 0; j < levelData.Length; j++)
+                        //for each letter per row
+                        for (int j = 0; j < levelRow; j++)
                         {
                             levelMap[j, i] = levelData[j];
-                            if (levelData[j] == 'G')
-                            {
-                                Platform temp = new Platform();
-                                Vector2 vector = new Vector2(200 * j, 200 * i);
-                                string cliff;
-
-                                //if the first column should be ground
-                                if (j == 0)
-                                {
-                                    if (levelData[j + 1] != 'G')
-                                    {
-                                        cliff = "right";
-                                    }
-                                    else
-                                    {
-                                        cliff = "none";
-                                    }
-                                }
-                                //if the last column should be ground
-                                else if(j == 19)
-                                {
-                                    if (levelData[j - 1] != 'G')
-                                    {
-                                        cliff = "left";
-                                    }
-                                    else
-                                    {
-                                        cliff = "none";
-                                    }
-                                }
-                                //everything else inside the buffer and we can check both sides of the current position
-                                else
-                                {
-                                    //if both sides of the platform are a cliff
-                                    if (levelData[j - 1] != 'G' && levelData[j + 1] != 'G')
-                                    {
-                                        cliff = "both";
-                                    }
-                                    //if the left side of the platform is a cliff
-                                    else if (levelData[j - 1] != 'G' && levelData[j + 1] == 'G')
-                                    {
-                                        cliff = "left";
-                                    }
-                                    //if the right side of the platform is a cliff
-                                    else if (levelData[j - 1] == 'G' && levelData[j + 1] != 'G')
-                                    {
-                                        cliff = "right";
-                                    }
-                                    //if neither side of the platform is a cliff
-                                    else
-                                    {
-                                        cliff = "none";
-                                    }
-                                }
-                                //creating the platform and adding it to the array of platforms
-                                temp.Initialize(Content.Load<Texture2D>("dirtPlatform"), 200, 200, vector, cliff);
-                                temp.setTexture(Content.Load<Texture2D>("ground"));
-                                thePlatforms.Add(temp);
-                            }
                         }
                     }
                 }
             }
 
-            maxLevelDistance.X = (levelData.Length * 200)- graphics.PreferredBackBufferWidth;
+            int tempRow = 800;
+
+            for (int i = levelColumn - 1; i >= 0; i--)
+            {
+                tempRow -= 200;
+                for (int j = 0; j < levelRow; j++)
+                {
+                    if (levelMap[j, i] == 'G')
+                    {
+                        //we need to determine if the platform has cliffs
+                        string cliff;
+
+                        //if the first column is ground
+                        if (j == 0)
+                        {
+                            if (levelMap[j + 1, i] != 'G')
+                            {
+                                cliff = "right";
+                            }
+                            else
+                            {
+                                cliff = "none";
+                            }
+                        }
+                        //if the last column is ground
+                        else if (j == 19)
+                        {
+                            if (levelMap[j - 1, i] != 'G')
+                            {
+                                cliff = "left";
+                            }
+                            else
+                            {
+                                cliff = "none";
+                            }
+                        }
+                        //everything else inside the buffer and we can check both sides of the current position
+                        else
+                        {
+                            //if both sides of the platform are a cliff
+                            if (levelMap[j - 1, i] != 'G' && levelMap[j + 1, i] != 'G')
+                            {
+                                cliff = "both";
+                            }
+                            //if the left side of the platform is a cliff
+                            else if (levelMap[j - 1, i] != 'G' && levelMap[j + 1, i] == 'G')
+                            {
+                                cliff = "left";
+                            }
+                            //if the right side of the platform is a cliff
+                            else if (levelMap[j - 1, i] == 'G' && levelMap[j + 1, i] != 'G')
+                            {
+                                cliff = "right";
+                            }
+                            //if neither side of the platform is a cliff
+                            else
+                            {
+                                cliff = "none";
+                            }
+                        }
+
+                        Vector2 vector = new Vector2(200 * j, tempRow);
+
+                        //creating the platform and adding it to the array of platforms
+                        Platform temp = new Platform();
+                        temp.Initialize(Content.Load<Texture2D>("dirtPlatform"), 200, 200, vector, cliff);
+                        temp.setTexture(Content.Load<Texture2D>("ground"));
+                        thePlatforms.Add(temp);
+                    }
+                }
+            }
+
+            maxLevelDistance = new Vector2((levelRow * 200 - graphics.PreferredBackBufferWidth), (levelColumn * 200 - graphics.PreferredBackBufferHeight));
 
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -415,7 +437,7 @@ namespace LegendOfMyria
             }
 
             //display for testing variables
-            spriteBatch.DrawString(font, player.getState(), new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y), Color.White);
+            spriteBatch.DrawString(font, "y"+windowMovement.Y, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y), Color.White);
             //spriteBatch.DrawString(font, "v: " + player.velocity.X, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y + 30), Color.White);
 
 
@@ -483,40 +505,83 @@ namespace LegendOfMyria
         private void ApplyMovement()
         {
             /**
-             * This function will move all the objects in the game.
+             * This function will move all the objects in the game.  It'll determine if the camera needs to move based on the level.  This
+             * function has been separated into two sections, moving the x axis first and then moving the y axis
              **/
 
-            //moving the player
-            if (player.Position.X >= windowHalf && player.velocity.X > 0 && windowMovement.X < maxLevelDistance.X)
-            {
+            //this will store the movement that is required for the screen on it's x and y axis
+            Vector2 screenVector = new Vector2(0, 0);
 
+            //if the player crosses the middle of the screen, they are moving to the right, and they are not at the end of the level
+            if (player.Position.X >= windowHalf.X && player.velocity.X > 0 && windowMovement.X < maxLevelDistance.X)
+            {
+                //if the distance between the edge of the level is less than the player's movement
                 if (maxLevelDistance.X - windowMovement.X < player.velocity.X)
                 {
-                    MoveScreen(maxLevelDistance.X - windowMovement.X);
-                    player.Position.Y += player.velocity.Y;
+                    //we only need to move the screen to the edge of the level
+                    screenVector.X = maxLevelDistance.X - windowMovement.X;
                 }
+                //else we have to move the screen the entire player's move speed
                 else
                 {
-                    MoveScreen(player.velocity.X);
-                    player.Position.Y += player.velocity.Y;
+                    screenVector.X = player.velocity.X;
                 }
+
+                MoveScreen(screenVector);
             }
-            else if (player.Position.X <= windowHalf && player.velocity.X < 0 && windowMovement.X > 0)
+            //if the player has crossed the middle of the screen, they are moving to the left, and they are not at the end of the level
+            else if (player.Position.X <= windowHalf.X && player.velocity.X < 0 && windowMovement.X > 0)
             {
                 if (windowMovement.X < Math.Abs(player.velocity.X))
                 {
-                    MoveScreen(-windowMovement.X);
-                    player.Position.Y += player.velocity.Y;
+                    screenVector.X = -windowMovement.X;
                 }
                 else
                 {
-                    MoveScreen(player.velocity.X);
-                    player.Position.Y += player.velocity.Y;
+                    screenVector.X = player.velocity.X;
                 }
+
+                MoveScreen(screenVector);
             }
+            //else we don't need to move the screen and we can move the player
             else
             {
-                player.Position += player.velocity;
+                player.Position.X += player.velocity.X;
+            }
+
+            //we use the same variable for the y axis and the x axis has already been factored in.  We need to make sure not to add the value twice
+            screenVector.X = 0;
+
+            //if the player crosses the middle of the screen, is moving upward, and has not reached the end of the level
+            if (player.Position.Y + player.Height <= windowHalf.Y && player.velocity.Y < 0 && windowMovement.Y > -maxLevelDistance.Y)
+            {
+                if (-maxLevelDistance.Y - windowMovement.Y > player.velocity.Y)
+                {
+                    screenVector.Y = -maxLevelDistance.Y - windowMovement.Y;
+                }
+                else
+                {
+                    screenVector.Y = player.velocity.Y;
+                }
+                MoveScreen(screenVector);
+            }
+            //if the player corsses the middle of the screen, is moving downward, and has not reached the end of the level
+            else if (player.Position.Y >= windowHalf.Y && player.velocity.Y > 0 && windowMovement.Y < 0)
+            {
+                if (Math.Abs(windowMovement.Y) < player.velocity.Y)
+                {
+                    screenVector.Y = -windowMovement.Y;
+                }
+                else
+                {
+                    screenVector.Y = player.velocity.Y;
+                }
+                MoveScreen(screenVector);
+            }
+            //else we can move the player
+            else
+            {
+                player.Position.Y += player.velocity.Y;
             }
         }
 
@@ -627,14 +692,16 @@ namespace LegendOfMyria
                         foreach (Platform element in thePlatforms)
                         {
                             //if the current platform is the platform next to the one the player is currently touching
-                            if (element.Position.X == player.currentlyTouching.getRightSide() && element.Position.Y == player.currentlyTouching.Position.Y && found == false)
+                            if (element.Position.X == player.currentlyTouching.getRightSide() && element.Position.Y == player.currentlyTouching.Position.Y)
                             {
-                                player.setTouching(element);
-                                found = true;
+                                if (!found)
+                                {
+                                    player.setTouching(element);
+                                    found = true;
+                                }
                             }
                         }
                     }
-
                 }
                 //if the platform has a cliff on the right side
                 else if (player.currentlyTouching.getCliffSide() == "right")
@@ -648,10 +715,13 @@ namespace LegendOfMyria
                     {
                         foreach (Platform element in thePlatforms)
                         {
-                            if (element.getRightSide() == player.currentlyTouching.Position.X && element.Position.Y == player.currentlyTouching.Position.Y && found == false)
+                            if (element.getRightSide() == player.currentlyTouching.Position.X && element.Position.Y == player.currentlyTouching.Position.Y)
                             {
-                                player.setTouching(element);
-                                found = true;
+                                if (!found)
+                                {
+                                    player.setTouching(element);
+                                    found = true;
+                                }
                             }
                         }
                     }
@@ -674,10 +744,13 @@ namespace LegendOfMyria
                     {
                         foreach(Platform element in thePlatforms)
                         {
-                            if (element.getRightSide() == player.currentlyTouching.Position.X && found == false)
+                            if (element.getRightSide() == player.currentlyTouching.Position.X && element.Position.Y == player.currentlyTouching.Position.Y)
                             {
-                                player.setTouching(element);
-                                found = true;
+                                if (!found)
+                                {
+                                    player.setTouching(element);
+                                    found = true;
+                                }
                             }
                         }
                     }
@@ -686,10 +759,13 @@ namespace LegendOfMyria
                     {
                         foreach (Platform element in thePlatforms)
                         {
-                            if (element.Position.X == player.currentlyTouching.getRightSide() && element.Position.Y == player.currentlyTouching.Position.Y && found == false)
+                            if (element.Position.X == player.currentlyTouching.getRightSide() && element.Position.Y == player.currentlyTouching.Position.Y)
                             {
-                                player.setTouching(element);
-                                found = true;
+                                if (!found)
+                                {
+                                    player.setTouching(element);
+                                    found = true;
+                                }
                             }
                         }
                     }
@@ -697,24 +773,25 @@ namespace LegendOfMyria
             }
         }
 
-        private void MoveScreen(float movement)
+        private void MoveScreen(Vector2 movement)
         {
             /**
              * This is going to move the screen to keep the player in the middle.  If the player is going to move
              * past the middle of the screen we shall move the environment instead.  If we reach the end of the 
              * map the player needs to move around without moving the window.
              **/
-            //moving the environment instead of the player
-            foreach (Platform element in thePlatforms)
-            {
-                //it must move at the speed of the player
-                element.Position.X -= movement;
-            }
 
-            player.startPos.X -= movement;
+                //moving the environment instead of the player
+                foreach (Platform element in thePlatforms)
+                {
+                    //it must move at the speed of the player
+                    element.Position -= movement;
+                }
 
-            //this stores how far we have moved the camera from the starting point
-            windowMovement.X += movement;
+                player.startPos -= movement;
+
+                //this stores how far we have moved the camera from the starting point
+                windowMovement += movement;
         }
 
         private void playerRespawn()
