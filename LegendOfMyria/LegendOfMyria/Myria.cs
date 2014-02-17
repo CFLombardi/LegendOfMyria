@@ -23,7 +23,7 @@ namespace LegendOfMyria
         //gravity constant that affects all objects
         float gravity;
 
-        //saving user input from xbone, current and previous
+        //user input from xbone, current and previous
         GamePadState currentGamePadState;
         GamePadState previousGamePadState;
 
@@ -44,7 +44,7 @@ namespace LegendOfMyria
         KeyboardState currentKeyboardState;
         KeyboardState previousKeyboardState;
 
-        //platforms throughout the level that are higher than the ground level
+        //platforms throughout the level
         List<Platform> thePlatforms;
 
         //this will store the input of the player per frame from the start of the game
@@ -56,10 +56,10 @@ namespace LegendOfMyria
         //this will store the x, y location of the player per frame from the start of the game
         List<Vector2> playerPath;
 
-        //The player character Lars
+        //The player character
         Player player;
 
-        //the ground platform.  Lars cannot fall below this levels lest he dies
+        //this is a null platform, it'll reside at x, y location -1, -1
         Platform dummy;
 
         //A random number generator
@@ -68,23 +68,26 @@ namespace LegendOfMyria
         // The font used to display UI elements
         SpriteFont font;
 
+        //used to draw the objects
         SpriteBatch spriteBatch;
 
+        //read buffer to take input from a text file
         string levelData;
 
         //Image used to display the static background
         //Texture2D mainBackground;
 
-        //this lets us know where the end point of the level is, used for window movement
+        //the current position of the camera
+        Vector2 cameraPosition;
+
+        //this holds the maxium distance, both x and y coords,  for the level
         Vector2 maxLevelDistance;
+
+        //this is where the camera starts in the level
+        Vector2 startingCamera;
 
         //this contains the halfway point for both x and y on the screen
         Vector2 windowHalf;
-
-        //This tracks the distance the player has moved from the starting point of the level
-        Vector2 windowMovement;
-
-
 
         public Myria()
         {
@@ -137,7 +140,10 @@ namespace LegendOfMyria
             // Initialize our random number generator
             random = new Random();
 
-            windowMovement = new Vector2(0, 0);
+            //setting the camera position, and it's starting location, to zero.  This will be determined by the level
+            cameraPosition = new Vector2(0, 0);
+
+            startingCamera = new Vector2(0, 0);
 
             base.Initialize();
         }
@@ -152,7 +158,7 @@ namespace LegendOfMyria
              * We determine how the level will be constructed based on a text file
              **/
 
-            //this is reading the text file to a text buffer
+            //this is reading the text file to a buffer
             using (var stream = TitleContainer.OpenStream("Levels/tutorial.txt"))
             {
                 //this allows us to reader from the text buffer
@@ -162,10 +168,11 @@ namespace LegendOfMyria
                     levelData = reader.ReadLine();
                     levelRow = Convert.ToInt32(levelData);
 
-                    //the second line from the text file will have the column length.  We'll conver it to an int and assign it to a variable
+                    //the second line from the text file will have the column length.  We'll convert it to an int and assign it to a variable
                     levelData = reader.ReadLine();
                     levelColumn = Convert.ToInt32(levelData);
 
+                    //creating a 2D array based on the information above
                     levelMap = new char[levelRow, levelColumn];
 
                     //for each row in the level map
@@ -177,25 +184,30 @@ namespace LegendOfMyria
                         //for each letter per row
                         for (int j = 0; j < levelRow; j++)
                         {
+                            //assign the letter to the 2D grid
                             levelMap[j, i] = levelData[j];
                         }
                     }
                 }
+                //we no longer have use for this and thus we clear out the data
+                levelData = null;
             }
 
-            int tempRow = 800;
+            //this lets us know how far the level is on it's x and y axis.  This is used for moving the camera
+            maxLevelDistance = new Vector2((levelRow * 200 - graphics.PreferredBackBufferWidth), (levelColumn * 200 - graphics.PreferredBackBufferHeight));
 
-            for (int i = levelColumn - 1; i >= 0; i--)
+            //now we need to construct the level.  We'll use the 2D array to help draw the level
+            for (int i = 0; i < levelColumn; i++)
             {
-                tempRow -= 200;
                 for (int j = 0; j < levelRow; j++)
                 {
+                    //G indicates a platform
                     if (levelMap[j, i] == 'G')
                     {
                         //we need to determine if the platform has cliffs
                         string cliff;
 
-                        //if the first column is ground
+                        //if this is the first column, we only need to check the right side
                         if (j == 0)
                         {
                             if (levelMap[j + 1, i] != 'G')
@@ -207,7 +219,7 @@ namespace LegendOfMyria
                                 cliff = "none";
                             }
                         }
-                        //if the last column is ground
+                        //if this is the last column, we only need to check the left side
                         else if (j == 19)
                         {
                             if (levelMap[j - 1, i] != 'G')
@@ -219,7 +231,7 @@ namespace LegendOfMyria
                                 cliff = "none";
                             }
                         }
-                        //everything else inside the buffer and we can check both sides of the current position
+                        //everything else inside the screen and we have to check both sides
                         else
                         {
                             //if both sides of the platform are a cliff
@@ -244,7 +256,8 @@ namespace LegendOfMyria
                             }
                         }
 
-                        Vector2 vector = new Vector2(200 * j, tempRow);
+                        //this will be the position of the platform
+                        Vector2 vector = new Vector2(200 * j, 200 * i);
 
                         //creating the platform and adding it to the array of platforms
                         Platform temp = new Platform();
@@ -252,10 +265,43 @@ namespace LegendOfMyria
                         temp.setTexture(Content.Load<Texture2D>("ground"));
                         thePlatforms.Add(temp);
                     }
+                    //@ indicates the player's starting position
+                    else if (levelMap[j, i] == '@')
+                    {
+                        //determining the x value for the camera
+                        if (j >= 7)
+                        {
+                            if ((j - 1) * 200 <= maxLevelDistance.X)
+                            {
+                                startingCamera.X = (j - 1) * 200;
+                            }
+                            else
+                            {
+                                startingCamera.X = maxLevelDistance.X;
+                            }
+                        }
+
+                        //determining the y value for the camera
+                        if (i >= 4)
+                        {
+                            if((i - 2) * 200 <= maxLevelDistance.Y)
+                            {
+                                startingCamera.Y = (i - 2) * 200;
+                            }
+                            else
+                            {
+                                startingCamera.Y = maxLevelDistance.Y;
+                            }
+                        }
+                        //now we need to set the starting position of the player
+                        player.startPos = new Vector2(200 * j, 200 * i);
+                    }
                 }
             }
 
-            maxLevelDistance = new Vector2((levelRow * 200 - graphics.PreferredBackBufferWidth), (levelColumn * 200 - graphics.PreferredBackBufferHeight));
+            //we need to move the camera and set the player's position to the starting position
+            MoveScreen(startingCamera);
+            player.Position = player.startPos;
 
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -437,8 +483,8 @@ namespace LegendOfMyria
             }
 
             //display for testing variables
-            spriteBatch.DrawString(font, "y"+windowMovement.Y, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y), Color.White);
-            //spriteBatch.DrawString(font, "v: " + player.velocity.X, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y + 30), Color.White);
+            //spriteBatch.DrawString(font, "x"+player.startPos.X, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y), Color.White);
+            //spriteBatch.DrawString(font, "y" + player.startPos.Y, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y + 30), Color.White);
 
 
             //Stop drawing
@@ -513,13 +559,13 @@ namespace LegendOfMyria
             Vector2 screenVector = new Vector2(0, 0);
 
             //if the player crosses the middle of the screen, they are moving to the right, and they are not at the end of the level
-            if (player.Position.X >= windowHalf.X && player.velocity.X > 0 && windowMovement.X < maxLevelDistance.X)
+            if (player.Position.X >= windowHalf.X && player.velocity.X > 0 && cameraPosition.X < maxLevelDistance.X)
             {
                 //if the distance between the edge of the level is less than the player's movement
-                if (maxLevelDistance.X - windowMovement.X < player.velocity.X)
+                if (maxLevelDistance.X - cameraPosition.X < player.velocity.X)
                 {
                     //we only need to move the screen to the edge of the level
-                    screenVector.X = maxLevelDistance.X - windowMovement.X;
+                    screenVector.X = maxLevelDistance.X - cameraPosition.X;
                 }
                 //else we have to move the screen the entire player's move speed
                 else
@@ -530,11 +576,11 @@ namespace LegendOfMyria
                 MoveScreen(screenVector);
             }
             //if the player has crossed the middle of the screen, they are moving to the left, and they are not at the end of the level
-            else if (player.Position.X <= windowHalf.X && player.velocity.X < 0 && windowMovement.X > 0)
+            else if (player.Position.X <= windowHalf.X && player.velocity.X < 0 && cameraPosition.X > 0)
             {
-                if (windowMovement.X < Math.Abs(player.velocity.X))
+                if (cameraPosition.X < Math.Abs(player.velocity.X))
                 {
-                    screenVector.X = -windowMovement.X;
+                    screenVector.X = -cameraPosition.X;
                 }
                 else
                 {
@@ -553,11 +599,11 @@ namespace LegendOfMyria
             screenVector.X = 0;
 
             //if the player crosses the middle of the screen, is moving upward, and has not reached the end of the level
-            if (player.Position.Y + player.Height <= windowHalf.Y && player.velocity.Y < 0 && windowMovement.Y > -maxLevelDistance.Y)
+            if (player.Position.Y + player.Height <= windowHalf.Y && player.velocity.Y < 0 && cameraPosition.Y > 0)
             {
-                if (-maxLevelDistance.Y - windowMovement.Y > player.velocity.Y)
+                if (cameraPosition.Y < Math.Abs(player.velocity.Y))
                 {
-                    screenVector.Y = -maxLevelDistance.Y - windowMovement.Y;
+                    screenVector.Y = -cameraPosition.Y;
                 }
                 else
                 {
@@ -566,11 +612,11 @@ namespace LegendOfMyria
                 MoveScreen(screenVector);
             }
             //if the player corsses the middle of the screen, is moving downward, and has not reached the end of the level
-            else if (player.Position.Y >= windowHalf.Y && player.velocity.Y > 0 && windowMovement.Y < 0)
+            else if (player.Position.Y >= windowHalf.Y && player.velocity.Y > 0 && cameraPosition.Y < maxLevelDistance.Y)
             {
-                if (Math.Abs(windowMovement.Y) < player.velocity.Y)
+                if (maxLevelDistance.Y - cameraPosition.Y < player.velocity.Y)
                 {
-                    screenVector.Y = -windowMovement.Y;
+                    screenVector.Y = maxLevelDistance.Y - cameraPosition.Y;
                 }
                 else
                 {
@@ -776,34 +822,37 @@ namespace LegendOfMyria
         private void MoveScreen(Vector2 movement)
         {
             /**
-             * This is going to move the screen to keep the player in the middle.  If the player is going to move
-             * past the middle of the screen we shall move the environment instead.  If we reach the end of the 
-             * map the player needs to move around without moving the window.
+             * This is going to move the screen so that the player can traverse throughout the level.  It'll move the environment around the
+             * player and track the movement of the screen and player's starting position in relation to the level.
              **/
 
                 //moving the environment instead of the player
                 foreach (Platform element in thePlatforms)
                 {
-                    //it must move at the speed of the player
+                    //move the platforms at the given speed
                     element.Position -= movement;
                 }
-
+                
+                //move the player's start position with the platforms
                 player.startPos -= movement;
 
-                //this stores how far we have moved the camera from the starting point
-                windowMovement += movement;
+                //move the camera in the direction the player is moving
+                cameraPosition += movement;
         }
 
         private void playerRespawn()
         {
+            Vector2 cameraRespawn = new Vector2(cameraPosition.X - startingCamera.X, cameraPosition.Y - startingCamera.Y);
+            //Vector2 playerRespawn = new Vector2(player.Position.X - player.startPos.X, player.Position.Y - player.startPos.Y);
+
             foreach (Platform element in thePlatforms)
             {
-                element.Position.X += windowMovement.X;
+                element.Position += cameraRespawn;
             }
-            player.startPos = new Vector2(player.startPos.X + windowMovement.X, player.startPos.Y);
+            player.startPos += cameraRespawn;
             player.Position = player.startPos;
             player.velocity = new Vector2(0, 0);
-            windowMovement.X = 0;
+            cameraPosition = startingCamera;
         }
 
         private void UpdatePlayer(GameTime gameTime)

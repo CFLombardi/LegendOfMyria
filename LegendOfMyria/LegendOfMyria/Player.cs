@@ -87,8 +87,6 @@ namespace LegendOfMyria
             Width = 75;
             Height = 152;
 
-            Position = startPos;
-
             velocity = new Vector2(0, 0);
 
             jumpedFrames = 0;
@@ -214,11 +212,6 @@ namespace LegendOfMyria
             return this.Position.X + this.Width;
         }
 
-        public Vector2 getStartingPos()
-        {
-            return startPos;
-        }
-
         public string getState()
         {
             return playerState;
@@ -237,11 +230,6 @@ namespace LegendOfMyria
         public void respawn()
         {
             Position = startPos;
-        }
-
-        public void setStartingPos(Vector2 position)
-        {
-            startPos = position;
         }
 
         public void setState(string state)
