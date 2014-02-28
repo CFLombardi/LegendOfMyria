@@ -17,13 +17,10 @@ namespace LegendOfMyria
     /// </summary>
     public class Myria : Microsoft.Xna.Framework.Game
     {
-        //the map of the level represented by a 2d grid of characters
-        char[,] levelMap;
-
         //gravity constant that affects all objects
         float gravity;
 
-        //user input from xbone, current and previous
+        //saving user input from xbone, current and previous
         GamePadState currentGamePadState;
         GamePadState previousGamePadState;
 
@@ -33,10 +30,6 @@ namespace LegendOfMyria
         //game's frames per seconds
         int framesPerSecond;
 
-        //determines how many rows and columns the level map is from the text file
-        int levelColumn;
-        int levelRow;
-
         //Number that holds the player score
         //int score;
 
@@ -44,7 +37,7 @@ namespace LegendOfMyria
         KeyboardState currentKeyboardState;
         KeyboardState previousKeyboardState;
 
-        //platforms throughout the level
+        //platforms throughout the level that are higher than the ground level
         List<Platform> thePlatforms;
 
         //this will store the input of the player per frame from the start of the game
@@ -56,10 +49,10 @@ namespace LegendOfMyria
         //this will store the x, y location of the player per frame from the start of the game
         List<Vector2> playerPath;
 
-        //The player character
+        //The player character Lars
         Player player;
 
-        //this is a null platform, it'll reside at x, y location -1, -1
+        //the ground platform.  Lars cannot fall below this levels lest he dies
         Platform dummy;
 
         //A random number generator
@@ -68,22 +61,26 @@ namespace LegendOfMyria
         // The font used to display UI elements
         SpriteFont font;
 
-        //used to draw the objects
         SpriteBatch spriteBatch;
 
-        //read buffer to take input from a text file
         string levelData;
+
+        //the map of the level represented by a 2d grid of characters
+        string[] levelMap;
 
         //Image used to display the static background
         //Texture2D mainBackground;
 
-        //the current position of the camera
+        //This tracks the distance the player has moved from the starting point of the level
         Vector2 cameraPosition;
 
-        //this holds the maxium distance, both x and y coords,  for the level
+        //this is the end point of the level the player is striving to get to
+        Vector2 goal;
+
+        //this lets us know where the end point of the level is, used for window movement
         Vector2 maxLevelDistance;
 
-        //this is where the camera starts in the level
+        //this is the position the camera started at for the level.
         Vector2 startingCamera;
 
         //this contains the halfway point for both x and y on the screen
@@ -140,7 +137,6 @@ namespace LegendOfMyria
             // Initialize our random number generator
             random = new Random();
 
-            //setting the camera position, and it's starting location, to zero.  This will be determined by the level
             cameraPosition = new Vector2(0, 0);
 
             startingCamera = new Vector2(0, 0);
@@ -158,59 +154,40 @@ namespace LegendOfMyria
              * We determine how the level will be constructed based on a text file
              **/
 
-            //this is reading the text file to a buffer
+            //this is reading the text file to a text buffer
             using (var stream = TitleContainer.OpenStream("Levels/tutorial.txt"))
             {
                 //this allows us to reader from the text buffer
                 using (var reader = new StreamReader(stream))
                 {
-                    //the first line from the text file will have the row length.  We'll convert it to an int and assign it to a variable
-                    levelData = reader.ReadLine();
-                    levelRow = Convert.ToInt32(levelData);
-
-                    //the second line from the text file will have the column length.  We'll convert it to an int and assign it to a variable
-                    levelData = reader.ReadLine();
-                    levelColumn = Convert.ToInt32(levelData);
-
-                    //creating a 2D array based on the information above
-                    levelMap = new char[levelRow, levelColumn];
-
-                    //for each row in the level map
-                    for (int i = 0; i < levelColumn; i++)
-                    {
-                        //retrieve the row from the file
-                        levelData = reader.ReadLine();
-                        
-                        //for each letter per row
-                        for (int j = 0; j < levelRow; j++)
-                        {
-                            //assign the letter to the 2D grid
-                            levelMap[j, i] = levelData[j];
-                        }
-                    }
+                    //reading the entire text file
+                    levelData = reader.ReadToEnd();
+                    
+                    //creating a 2D array that will contain the information from the text file
+                    char[] delimiters = new char[] { '\r', '\n' };
+                    levelMap = levelData.Split(delimiters, StringSplitOptions.RemoveEmptyEntries);
                 }
                 //we no longer have use for this and thus we clear out the data
                 levelData = null;
             }
 
             //this lets us know how far the level is on it's x and y axis.  This is used for moving the camera
-            maxLevelDistance = new Vector2((levelRow * 200 - graphics.PreferredBackBufferWidth), (levelColumn * 200 - graphics.PreferredBackBufferHeight));
+            maxLevelDistance = new Vector2((levelMap[0].Length * 200 - graphics.PreferredBackBufferWidth), (levelMap.Length * 200 - graphics.PreferredBackBufferHeight));
 
             //now we need to construct the level.  We'll use the 2D array to help draw the level
-            for (int i = 0; i < levelColumn; i++)
+            for (int i = 0; i < levelMap.Length; i++)
             {
-                for (int j = 0; j < levelRow; j++)
+                for (int j = 0; j < levelMap[i].Length; j++)
                 {
-                    //G indicates a platform
-                    if (levelMap[j, i] == 'G')
+                    if (levelMap[i][j] == 'G')
                     {
                         //we need to determine if the platform has cliffs
                         string cliff;
 
-                        //if this is the first column, we only need to check the right side
+                        //if the first column is ground
                         if (j == 0)
                         {
-                            if (levelMap[j + 1, i] != 'G')
+                            if (levelMap[i][j+1] != 'G')
                             {
                                 cliff = "right";
                             }
@@ -219,10 +196,10 @@ namespace LegendOfMyria
                                 cliff = "none";
                             }
                         }
-                        //if this is the last column, we only need to check the left side
-                        else if (j == 19)
+                        //if the last column is ground
+                        else if (j == levelMap[i].Length - 1)
                         {
-                            if (levelMap[j - 1, i] != 'G')
+                            if (levelMap[i][j-1] != 'G')
                             {
                                 cliff = "left";
                             }
@@ -231,21 +208,21 @@ namespace LegendOfMyria
                                 cliff = "none";
                             }
                         }
-                        //everything else inside the screen and we have to check both sides
+                        //everything else inside the buffer and we can check both sides of the current position
                         else
                         {
                             //if both sides of the platform are a cliff
-                            if (levelMap[j - 1, i] != 'G' && levelMap[j + 1, i] != 'G')
+                            if (levelMap[i][j-1] != 'G' && levelMap[i][j+1] != 'G')
                             {
                                 cliff = "both";
                             }
                             //if the left side of the platform is a cliff
-                            else if (levelMap[j - 1, i] != 'G' && levelMap[j + 1, i] == 'G')
+                            else if (levelMap[i][j-1] != 'G' && levelMap[i][j+1] == 'G')
                             {
                                 cliff = "left";
                             }
                             //if the right side of the platform is a cliff
-                            else if (levelMap[j - 1, i] == 'G' && levelMap[j + 1, i] != 'G')
+                            else if (levelMap[i][j-1] == 'G' && levelMap[i][j+1] != 'G')
                             {
                                 cliff = "right";
                             }
@@ -265,8 +242,7 @@ namespace LegendOfMyria
                         temp.setTexture(Content.Load<Texture2D>("ground"));
                         thePlatforms.Add(temp);
                     }
-                    //@ indicates the player's starting position
-                    else if (levelMap[j, i] == '@')
+                    else if (levelMap[i][j] == '@')
                     {
                         //determining the x value for the camera
                         if (j >= 7)
@@ -295,6 +271,10 @@ namespace LegendOfMyria
                         }
                         //now we need to set the starting position of the player
                         player.startPos = new Vector2(200 * j, 200 * i);
+                    }
+                    else if (levelMap[i][j] == '#')
+                    {
+                        goal = new Vector2(j * 200, i * 200);
                     }
                 }
             }
@@ -380,7 +360,7 @@ namespace LegendOfMyria
                 }
 
                 //now that we have all the info in the proper order, we shall write to a text file that will be saved on the desktop
-                System.IO.StreamWriter file = new System.IO.StreamWriter("C:\\Users\\Tony\\Desktop\\debug.txt");
+                System.IO.StreamWriter file = new System.IO.StreamWriter("C:\\Users\\Anthony\\Desktop\\debug.txt");
                 for (int i = 0; i < header.GetLength(1); i++)
                 {
                     file.WriteLine(header[0, i] + "\t" + header[1, i] + "\t"+ header[2, i]);
@@ -483,7 +463,7 @@ namespace LegendOfMyria
             }
 
             //display for testing variables
-            //spriteBatch.DrawString(font, "x"+player.startPos.X, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y), Color.White);
+            spriteBatch.DrawString(font, player.getState(), new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y), Color.White);
             //spriteBatch.DrawString(font, "y" + player.startPos.Y, new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, GraphicsDevice.Viewport.TitleSafeArea.Y + 30), Color.White);
 
 
@@ -692,9 +672,18 @@ namespace LegendOfMyria
                         }
                         else if (player.getState() == "falling")
                         {
-                            //once the player begins to fall is when he'll be able to climb on the wall
-                            player.setState("hitWall");
-                            player.setTouching(element);
+                            if (player.velocity.X > 0 && currentKeyboardState.IsKeyDown(Keys.D))
+                            {
+                                //once the player begins to fall is when he'll be able to climb on the wall
+                                player.setState("hitWall");
+                                player.setTouching(element);
+                            }
+                            else if (player.velocity.X < 0 && currentKeyboardState.IsKeyDown(Keys.A))
+                            {
+                                //once the player begins to fall is when he'll be able to climb on the wall
+                                player.setState("hitWall");
+                                player.setTouching(element);
+                            }
                         }
 
                         //the player must not pass through the platform

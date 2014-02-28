@@ -1,5 +1,30 @@
-Add crouching.
+-Add crouching.
+-Add a goal to finish the map.
+-Add health (high health/damage ratio)
+-make harmful platforms. (track the player taking damage)
+-Tino glitched through the step past the first gap. (check the debug log)
+-moving platforms
+-running (hold to dash)
+-get rid of the x, y variables in the level file
+-fix sliding upward
 
-Add a goal to finish the map.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 tracking metrics (player path, times died, health, etc.) - long term goal
